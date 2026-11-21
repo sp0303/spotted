@@ -293,6 +293,7 @@ CREATE TABLE foundation_checks (
     status      check_status NOT NULL,
     evidence_level evidence_level NOT NULL DEFAULT 'observed',
     summary     text NOT NULL,                     -- plain-language result for the owner
+    fix         text,                              -- plain-language next step, when there is one
     evidence    jsonb,                             -- headers, snippets, diffs
     checked_at  timestamptz NOT NULL DEFAULT now()
 );

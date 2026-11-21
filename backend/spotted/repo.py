@@ -142,3 +142,82 @@ async def confirm_profile(conn: AsyncConnection, business_id: UUID, submitted: B
                     [(business_id, c) for c in comps],
                 )
     return await get_profile(conn, business_id)
+
+
+# ---------------------------------------------------------------------------
+# Foundation checks (stored under an audit row)
+# ---------------------------------------------------------------------------
+
+
+async def save_foundations(conn: AsyncConnection, business_id: UUID, report, started_at) -> UUID:
+    from .foundations import METHODOLOGY_VERSION
+
+    config = {"kind": "foundations", "url": report.url, "final_url": report.final_url, "cdn": report.cdn,
+              "platform": report.platform, "rendered": report.rendered}
+    async with conn.transaction():
+        cur = await conn.execute(
+            """INSERT INTO audits (business_id, tier, status, methodology_version, config, started_at,
+                                   first_results_at, finished_at)
+               VALUES (%s, 'free', 'complete', %s, %s, %s, now(), now()) RETURNING id""",
+            (business_id, METHODOLOGY_VERSION, Jsonb(config), started_at),
+        )
+        audit_id = (await cur.fetchone())[0]
+        async with conn.cursor() as cur:
+            await cur.executemany(
+                """INSERT INTO foundation_checks (audit_id, check_type, target, status, evidence_level, summary,
+                                                  fix, evidence)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                [(audit_id, c.check_type, c.target, c.status, c.evidence_level, c.summary, c.fix,
+                  Jsonb(json.loads(json.dumps(c.evidence, default=str)))) for c in report.checks],
+            )
+            await cur.executemany(
+                """INSERT INTO crawler_access (audit_id, url, user_agent, robots, http_status, challenge, result,
+                                               cdn, evidence)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                [(audit_id, r.url, r.token, r.robots, r.http_status, r.challenge, r.result, r.cdn,
+                  Jsonb({"note": r.note, "robots_line": r.robots_line})) for r in report.crawlers],
+            )
+    return audit_id
+
+
+async def latest_foundations(conn: AsyncConnection, business_id: UUID) -> dict | None:
+    """Latest foundations audit for a business, shaped like the API response."""
+    from .crawlers import BY_TOKEN
+
+    cur = conn.cursor(row_factory=dict_row)
+    await cur.execute(
+        """SELECT id, config, finished_at FROM audits
+           WHERE business_id = %s AND config->>'kind' = 'foundations'
+           ORDER BY created_at DESC LIMIT 1""",
+        (business_id,),
+    )
+    audit = await cur.fetchone()
+    if audit is None:
+        return None
+    await cur.execute(
+        """SELECT check_type::text, target, status::text, evidence_level::text, summary, fix, evidence
+           FROM foundation_checks WHERE audit_id = %s ORDER BY checked_at, id""",
+        (audit["id"],),
+    )
+    checks = await cur.fetchall()
+    await cur.execute(
+        """SELECT url, user_agent, robots::text, http_status, challenge, result, cdn, evidence
+           FROM crawler_access WHERE audit_id = %s""",
+        (audit["id"],),
+    )
+    order = list(BY_TOKEN)
+    crawlers = []
+    for row in sorted(await cur.fetchall(), key=lambda r: order.index(r["user_agent"]) if r["user_agent"] in order else 99):
+        c = BY_TOKEN.get(row["user_agent"])
+        crawlers.append({
+            "token": row["user_agent"], "operator": c.operator if c else "", "purpose": c.purpose if c else "",
+            "url": row["url"], "robots": row["robots"], "robots_line": (row["evidence"] or {}).get("robots_line"),
+            "http_status": row["http_status"], "challenge": row["challenge"], "result": row["result"],
+            "cdn": row["cdn"], "note": (row["evidence"] or {}).get("note", ""),
+            "token_only": bool(c and c.is_token_only),
+        })
+    cfg = audit["config"]
+    return {"audit_id": str(audit["id"]), "checked_at": audit["finished_at"].isoformat(),
+            "url": cfg.get("url"), "final_url": cfg.get("final_url"), "cdn": cfg.get("cdn"),
+            "platform": cfg.get("platform"), "rendered": cfg.get("rendered", False),
+            "checks": checks, "crawlers": crawlers}

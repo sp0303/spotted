@@ -20,6 +20,15 @@ class Settings:
     max_page_bytes: int = 2_000_000
     max_extra_pages: int = 5
     llm_timeout_s: float = 40.0
+    # Development only: lets the crawler fetch localhost fixture sites. Never set in production.
+    allow_private_hosts: bool = field(default_factory=lambda: os.getenv("SPOTTED_ALLOW_PRIVATE_HOSTS") == "1")
+    # Chromium for the JavaScript-rendering check. Empty = Playwright's own browser; "off" disables rendering.
+    chromium_path: str | None = field(default_factory=lambda: os.getenv("CHROMIUM_PATH") or None)
+    render_timeout_s: float = 15.0
+    # Browser origins allowed to call the API (the Vite dev server by default).
+    cors_origins: tuple[str, ...] = field(
+        default_factory=lambda: tuple(os.getenv("CORS_ORIGINS", "http://localhost:5173").split(","))
+    )
 
 
 settings = Settings()

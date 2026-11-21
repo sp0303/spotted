@@ -82,3 +82,22 @@ def test_bad_urls_get_plain_errors(client):
 
 def test_unknown_business_is_404(client):
     assert client.get("/api/businesses/00000000-0000-0000-0000-000000000000").status_code == 404
+
+
+def test_foundations_endpoint(client, florist_site, monkeypatch):
+    from spotted import foundations
+
+    monkeypatch.setattr(foundations, "default_renderer", lambda: None)
+    florist_site.get("http://www.petallane.example/").respond(301, headers={"location": "https://www.petallane.example/"})
+    florist_site.route(host="www.petallane.example").respond(404, headers={"content-type": "text/html"})
+    bid = client.post("/api/profiles", json={"url": "petallane.example"}).json()["business_id"]
+    assert client.get(f"/api/businesses/{bid}/foundations").status_code == 404
+
+    resp = client.post(f"/api/businesses/{bid}/foundations")
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    types = {c["check_type"] for c in body["checks"]}
+    assert {"http_status", "robots_txt", "sitemap", "cdn_waf", "js_render", "noindex", "webmcp"} <= types
+    assert len(body["crawlers"]) == 16 and body["crawlers"][0]["token"] == "Googlebot"
+    assert body["purpose_labels"]["search"].startswith("Search")
+    assert client.get(f"/api/businesses/{bid}/foundations").json()["audit_id"] == body["audit_id"]

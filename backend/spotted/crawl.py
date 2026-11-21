@@ -39,6 +39,8 @@ class Page:
     status: int
     html: str
     content_type: str = ""
+    headers: dict[str, str] = field(default_factory=dict)  # lower-cased names
+    redirects: list[tuple[str, int]] = field(default_factory=list)  # hops before the final URL
 
 
 @dataclass
@@ -85,6 +87,8 @@ def _is_public_ip(ip: str) -> bool:
 
 async def assert_public_host(host: str) -> None:
     """Raise FetchError unless every address the host resolves to is public."""
+    if settings.allow_private_hosts:  # local development against fixture sites only
+        return
     try:
         infos = await asyncio.get_running_loop().getaddrinfo(host, None, type=socket.SOCK_STREAM)
     except socket.gaierror:
@@ -94,13 +98,15 @@ async def assert_public_host(host: str) -> None:
         raise FetchError(f"{host} isn't a public website.")
 
 
-async def fetch_page(client: httpx.AsyncClient, url: str) -> Page:
+async def fetch_page(client: httpx.AsyncClient, url: str, headers: dict[str, str] | None = None) -> Page:
     """GET a URL, following redirects manually so each hop is checked. Body is capped in size."""
+    redirects: list[tuple[str, int]] = []
     for _ in range(MAX_REDIRECTS + 1):
         await assert_public_host(urlsplit(url).hostname or "")
         try:
-            async with client.stream("GET", url) as resp:
+            async with client.stream("GET", url, headers=headers) as resp:
                 if resp.is_redirect and "location" in resp.headers:
+                    redirects.append((url, resp.status_code))
                     url = normalize_url(urljoin(url, resp.headers["location"]))
                     continue
                 chunks, size = [], 0
@@ -116,6 +122,8 @@ async def fetch_page(client: httpx.AsyncClient, url: str) -> Page:
                     status=resp.status_code,
                     html=body.decode(encoding, errors="replace"),
                     content_type=resp.headers.get("content-type", ""),
+                    headers={k.lower(): v for k, v in resp.headers.items()},
+                    redirects=redirects,
                 )
         except httpx.TimeoutException:
             raise FetchError(f"{urlsplit(url).hostname} took too long to respond.") from None
@@ -148,15 +156,19 @@ def pick_key_pages(page: Page, limit: int) -> list[str]:
     return sorted(scored, key=lambda u: (-scored[u], len(u)))[:limit]
 
 
-async def fetch_site(raw_url: str, client: httpx.AsyncClient | None = None) -> Site:
-    """Fetch the homepage, then the key pages in parallel. Failed extra pages are skipped."""
-    url = normalize_url(raw_url)
-    owns_client = client is None
-    client = client or httpx.AsyncClient(
+def make_client() -> httpx.AsyncClient:
+    return httpx.AsyncClient(
         timeout=settings.fetch_timeout_s,
         follow_redirects=False,
         headers={"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml"},
     )
+
+
+async def fetch_site(raw_url: str, client: httpx.AsyncClient | None = None) -> Site:
+    """Fetch the homepage, then the key pages in parallel. Failed extra pages are skipped."""
+    url = normalize_url(raw_url)
+    owns_client = client is None
+    client = client or make_client()
     try:
         home = await fetch_page(client, url)
         if home.status >= 400:
