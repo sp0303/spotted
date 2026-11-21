@@ -54,7 +54,13 @@ CREATE TABLE businesses (
     description   text,
     differentiators text[] NOT NULL DEFAULT '{}',
     languages     text[] NOT NULL DEFAULT '{}',
+    target_customer text,
+    phones        text[] NOT NULL DEFAULT '{}',
+    emails        text[] NOT NULL DEFAULT '{}',
+    hours         text[] NOT NULL DEFAULT '{}',    -- as stated, e.g. "Monday,Tuesday 09:00-17:00"
+    social_profiles jsonb NOT NULL DEFAULT '[]',   -- [{"platform": "instagram", "url": "..."}]
     profile_raw   jsonb,                           -- extraction output as returned
+    profile_current jsonb,                         -- profile as last shown to or confirmed by the owner (values + origin + evidence)
     field_origins jsonb NOT NULL DEFAULT '{}',     -- {"category": "inferred", "services": "confirmed", ...}
     confirmed_at  timestamptz,                     -- owner confirmed the profile
     created_at    timestamptz NOT NULL DEFAULT now(),
