@@ -1,0 +1,23 @@
+{
+  "_note": "Businesses named by the consumer apps in the 20 Nov 2026 manual test, logged out, incognito. VPN on = Proton US server (Miami). 'near me' VPN-on answers may carry Dallas context from earlier prompts in the same chat. Add new runs as new keys.",
+  "best florists in Dallas": {
+    "ChatGPT app (VPN on)": ["DIRT Flowers", "Avant Garden", "Dr Delphinium Designs & Events", "French Florist", "McShan Florist", "Petals & Stems Florist", "PRESCH Petals", "The T Shop", "Park Cities Petals", "Le Bloom"],
+    "ChatGPT app (VPN off)": ["French Florist", "Dr Delphinium Designs & Events", "McShan Florist", "Petals & Stems Florist", "Designs East Florist & Interior", "Twelve Thirty Four", "PRESCH Petals", "Flower Boulevard"],
+    "Google AI Mode (VPN on)": ["McShan Florist", "In Bloom Flowers on Mockingbird", "All Occasions Florist", "Petals & Stems Florist", "Designs East Florist & Interior", "Avant Garden", "Dr Delphinium Designs & Events", "DIRT Flowers", "Urban Flower Grange Hall", "Park Cities Petals"],
+    "Google AI Mode (VPN off)": ["McShan Florist", "Dr Delphinium Designs & Events", "Petals & Stems Florist", "French Florist", "Park Cities Petals", "Designs East Florist & Interior"],
+    "Copilot (VPN on)": ["Dr Delphinium Designs & Events", "Grey Gardens", "Avant Garden", "Haute Floral", "A&L Floral Design", "Julia Winters Floral", "Lewis Floral + Events"]
+  },
+  "same-day flower delivery Dallas": {
+    "ChatGPT app (VPN on)": ["Estrella's Flower Shop", "PRESCH Petals", "McShan Florist", "Designs East Florist & Interior", "Petals & Stems Florist"],
+    "ChatGPT app (VPN off)": ["Estrella's Flower Shop", "McShan Florist", "PRESCH Petals", "Designs East Florist & Interior", "Flower Boulevard", "Dallas Flora Same Day Flower Delivery"],
+    "Google AI Mode (VPN on)": ["McShan Florist", "In Bloom Flowers on Mockingbird", "Dallas Flora Same Day Flower Delivery", "Petals & Stems Florist", "Estrella's Flower Shop", "I Love Roses Florist", "DIRT Flowers"],
+    "Google AI Mode (VPN off)": ["McShan Florist", "Dallas Flora Same Day Flower Delivery", "In Bloom Flowers on Mockingbird", "Flower Delivery Dallas", "Estrella's Flower Shop"],
+    "Copilot (VPN on)": ["Estrella's Flower Shop", "Petals & Stems Florist", "Flowers by Coley Dallas", "Dallas House of Flowers", "In Bloom Flowers", "Sophie Stems"],
+    "Bing (VPN off) run 1": ["Flowers by Coley Dallas", "Flower Delivery Dallas", "Dr Delphinium Designs & Events", "Designs East Florist & Interior", "DIRT Flowers", "Dallas House of Flowers", "In Bloom Flowers"],
+    "Bing (VPN off) run 2": ["In Bloom Flowers on Mockingbird", "DIRT Flowers", "Flowers by Coley Dallas", "McShan Florist", "All Occasions Florist", "Estrella's Flower Shop"]
+  },
+  "best florist near me": {
+    "Google AI Mode (VPN on, Dallas context)": ["Park Cities Petals", "All Occasions Florist", "French Florist", "Petals & Stems Florist", "McShan Florist", "In Bloom Flowers"],
+    "Copilot (VPN on, Dallas context)": ["McShan Florist", "DIRT Flowers", "Dallas House of Flowers", "Life of a Flower"]
+  }
+}

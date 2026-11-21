@@ -1,0 +1,28 @@
+condition,prompt,run,latency_s,n_businesses,businesses,n_web_sources,n_maps_places,error
+search,best florists in Dallas,1,17.76,9,Avant Garden | Dr. Delphinium Designs & Events | Urban Flower / Grange Hall | Twelve Thirty Four | DIRT Flowers | PRESCH Petals | McShan Florist | In Bloom Flowers on Mockingbird | Lane Florist,8,0,
+search,best florists in Dallas,2,38.93,8,Dr. Delphinium Designs & Events | Avant Garden | DIRT Flowers | Presch Petals | McShan Florist | In Bloom Flowers | Lane Florist | The Corner Market,6,0,
+search,best florists in Dallas,3,18.85,10,Avant Garden | Dr Delphinium Designs & Events | Park Cities Petals | Twelve Thirty Four | DIRT Flowers | Urban Flower / Grange Hall | The T Shop | Le Bloom | McShan Florist | In Bloom Flowers,6,0,
+search,same-day flower delivery Dallas,1,21.61,14,Dr. Delphinium Designs & Events | McShan Florist | Petals & Stems Florist | In Bloom Flowers | Flower Boom Dallas | Floom | UrbanStems | 1-800-Flowers | ProFlowers | DoorDash | Uber Eats | Instacart | Central Market | Whole Foods Market,11,0,
+search,same-day flower delivery Dallas,2,21.41,9,Dr. Delphinium Designs & Events | DIRT Flowers | In Bloom Flowers | McShan Florist | All Occasions Florist | BloomNation | UrbanStems | The Bouqs Co. | Proflowers,9,0,
+search,same-day flower delivery Dallas,3,16.33,9,McShan Florist | Dr Delphinium Designs & Events | DIRT Flowers | In Bloom Flowers | The Flower Bucket | Dallas Flora | BloomNation | UrbanStems | The Bouqs Co.,10,0,
+search,best florist near me,1,10.04,7,Interflora India | Ferns N Petals (FNP) | FlowerAura | IGP (Indian Gifts Portal) | Blinkit | Zepto | Swiggy Instamart,0,0,
+search,best florist near me,2,11.26,7,Blinkit | Zepto | Swiggy Instamart | Interflora India | Ferns N Petals (FNP) | FlowerAura | IGP (Indian Gifts Portal),0,0,
+search,best florist near me,3,9.72,7,Interflora | Ferns N Petals (FNP) | FlowerAura | IGP | Blinkit | Zepto | Instamart,0,0,
+maps_dallas,best florists in Dallas,1,23.11,6,McShan Florist | Dr Delphinium Designs & Events | DIRT Flowers | French Florist | PRESCH Petals | Designs East Florist & Interior,0,22,
+maps_dallas,best florists in Dallas,2,34.24,6,McShan Florist | Dr Delphinium Designs & Events | French Florist | PRESCH Petals | Designs East Florist & Interior | In Bloom Flowers,0,21,
+maps_dallas,best florists in Dallas,3,24.32,6,Dr Delphinium Designs & Events | DIRT Flowers | Park Cities Petals | Designs East Florist & Interior | PRESCH Petals | Flower Boulevard,0,21,
+maps_dallas,same-day flower delivery Dallas,1,14.44,5,In Bloom Flowers | Designs East Florist & Interior | Lovely Flowers Dallas | Flower Boulevard | Dallas Flower Florist,0,5,
+maps_dallas,same-day flower delivery Dallas,2,16.43,6,In Bloom Flowers on Mockingbird | All Blooming Flowers | Flower Boulevard | Lovely Flowers Dallas | Dallas Flora Same Day Flower Delivery | Designs East Florist & Interior,0,18,
+maps_dallas,same-day flower delivery Dallas,3,13.96,5,In Bloom Flowers on Mockingbird | All Blooming Flowers | Flower Boulevard | Dallas Flora Same Day Flower Delivery | Lovely Flowers Dallas,0,15,
+maps_dallas,best florist near me,1,9.66,5,PRESCH Petals | Flower Boulevard | DLux Roses | Designs East Florist & Interior | Lovely Flowers Dallas,0,13,
+maps_dallas,best florist near me,2,14.05,5,French Florist | PRESCH Petals | DLux Roses | Designs East Florist & Interior | Lovely Flowers Dallas,0,11,
+maps_dallas,best florist near me,3,14.55,5,PRESCH Petals | Flower Boulevard | Designs East Florist & Interior | DLux Roses - Eternity Roses | Lovely Flowers Dallas,0,9,
+search_maps_dallas,best florists in Dallas,1,0.3,0,,0,0,"400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 'status': 'INVALID_ARGUMENT'}}"
+search_maps_dallas,best florists in Dallas,2,0.28,0,,0,0,"400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 'status': 'INVALID_ARGUMENT'}}"
+search_maps_dallas,best florists in Dallas,3,0.33,0,,0,0,"400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 'status': 'INVALID_ARGUMENT'}}"
+search_maps_dallas,same-day flower delivery Dallas,1,0.26,0,,0,0,"400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 'status': 'INVALID_ARGUMENT'}}"
+search_maps_dallas,same-day flower delivery Dallas,2,0.24,0,,0,0,"400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 'status': 'INVALID_ARGUMENT'}}"
+search_maps_dallas,same-day flower delivery Dallas,3,0.31,0,,0,0,"400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 'status': 'INVALID_ARGUMENT'}}"
+search_maps_dallas,best florist near me,1,0.31,0,,0,0,"400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 'status': 'INVALID_ARGUMENT'}}"
+search_maps_dallas,best florist near me,2,0.23,0,,0,0,"400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 'status': 'INVALID_ARGUMENT'}}"
+search_maps_dallas,best florist near me,3,0.39,0,,0,0,"400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 'status': 'INVALID_ARGUMENT'}}"
