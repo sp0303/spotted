@@ -26,6 +26,7 @@ export default function App() {
           <Route path="*" element={<p>Page not found. <Link to="/">Start again</Link></p>} />
         </Routes>
       </main>
+      <footer className="site-footer">A Sharat Patnayakuni product</footer>
     </>
   );
 }
