@@ -110,7 +110,7 @@ export default function ProfilePage() {
   return (
     <form onSubmit={submit} className="profile" noValidate>
       <div className="page-head">
-        <p className="eyebrow">Step 1 of 2 · Check your profile</p>
+        <p className="eyebrow">Step 1 of 4 · Check your profile</p>
         <h1>{profile.name.value || "Your business"}</h1>
         <p className="muted">
           <a href={profile.website_url} target="_blank" rel="noreferrer noopener">

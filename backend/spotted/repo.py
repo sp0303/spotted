@@ -1,16 +1,36 @@
-"""Postgres access for business profiles (tables in schema/schema.sql)."""
+"""MongoDB access for business profiles and audits.
+
+Collections (names get MONGO_COLLECTION_PREFIX, "spotted_" by default):
+  businesses  one document per business: profile columns, the draft/current profile, and the owner-confirmed
+              aliases, locations, services and competitors embedded as arrays
+  audits      one document per audit run, with its foundation checks and crawler access results embedded
+  crawlers    the crawler registry, keyed by robots.txt token (see crawlers.py)
+
+schema/schema.sql is still the reference data model; these documents follow its tables and column names.
+"""
 
 import json
-from pathlib import Path
-from uuid import UUID
+from datetime import datetime, timezone
+from uuid import UUID, uuid4
 
-from psycopg import AsyncConnection
-from psycopg.rows import dict_row
-from psycopg.types.json import Jsonb
+from pymongo import ASCENDING, DESCENDING
+from pymongo.asynchronous.database import AsyncDatabase
 
+from .config import settings
 from .models import BusinessProfile, StoredProfile
 
-SCHEMA_FILE = Path(__file__).resolve().parents[2] / "schema" / "schema.sql"
+
+def col(db: AsyncDatabase, name: str):
+    return db[f"{settings.mongo_collection_prefix}{name}"]
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _plain(value):
+    """JSON round trip so arbitrary evidence (sets, dataclasses, datetimes) stores cleanly as BSON."""
+    return json.loads(json.dumps(value, default=str))
 
 
 def field_origins(p: BusinessProfile) -> dict:
@@ -46,37 +66,40 @@ def _columns(p: BusinessProfile) -> dict:
         "phones": [f.value for f in p.phones],
         "emails": [f.value for f in p.emails],
         "hours": [f.value for f in p.hours],
-        "social_profiles": Jsonb([{"platform": s.platform, "url": s.url} for s in p.social_profiles]),
-        "field_origins": Jsonb(field_origins(p)),
-        "profile_current": Jsonb(p.model_dump(mode="json")),
+        "social_profiles": [{"platform": s.platform, "url": s.url} for s in p.social_profiles],
+        "field_origins": field_origins(p),
+        "profile_current": p.model_dump(mode="json"),
     }
 
 
-async def apply_schema(conn: AsyncConnection) -> None:
-    """Create the schema if the businesses table doesn't exist yet (dev convenience, not migrations)."""
-    cur = await conn.execute("SELECT to_regclass('public.businesses') IS NOT NULL")
-    if not (await cur.fetchone())[0]:
-        await conn.execute(SCHEMA_FILE.read_text())
+async def ensure_indexes(db: AsyncDatabase) -> None:
+    """Create the collections' indexes (idempotent; MongoDB creates collections on first use)."""
+    await col(db, "businesses").create_index([("domain", ASCENDING)])
+    await col(db, "audits").create_index([("business_id", ASCENDING), ("config.kind", ASCENDING),
+                                          ("created_at", DESCENDING)])
+    # Free-run limit per requester IP (airun.py).
+    await col(db, "audits").create_index([("requested_ip", ASCENDING), ("created_at", DESCENDING)], sparse=True)
 
 
-async def create_draft(conn: AsyncConnection, profile: BusinessProfile, raw: dict) -> UUID:
-    cols = _columns(profile) | {"profile_raw": Jsonb(json.loads(json.dumps(raw, default=str)))}
-    names = ", ".join(cols)
-    params = ", ".join(f"%({k})s" for k in cols)
-    cur = await conn.execute(f"INSERT INTO businesses ({names}) VALUES ({params}) RETURNING id", cols)
-    return (await cur.fetchone())[0]
+async def create_draft(db: AsyncDatabase, profile: BusinessProfile, raw: dict) -> UUID:
+    business_id = uuid4()
+    now = _now()
+    doc = {"_id": str(business_id), **_columns(profile), "profile_raw": _plain(raw),
+           "aliases": [], "locations": [], "services": [], "competitors": [],
+           "confirmed_at": None, "created_at": now, "updated_at": now}
+    await col(db, "businesses").insert_one(doc)
+    return business_id
 
 
-async def get_profile(conn: AsyncConnection, business_id: UUID) -> StoredProfile | None:
-    cur = conn.cursor(row_factory=dict_row)
-    await cur.execute("SELECT id, profile_current, confirmed_at FROM businesses WHERE id = %s", (business_id,))
-    row = await cur.fetchone()
-    if row is None or row["profile_current"] is None:
+async def get_profile(db: AsyncDatabase, business_id: UUID) -> StoredProfile | None:
+    doc = await col(db, "businesses").find_one({"_id": str(business_id)},
+                                               {"profile_current": 1, "confirmed_at": 1})
+    if doc is None or doc.get("profile_current") is None:
         return None
     return StoredProfile(
-        business_id=str(row["id"]),
-        confirmed=row["confirmed_at"] is not None,
-        profile=BusinessProfile.model_validate(row["profile_current"]),
+        business_id=doc["_id"],
+        confirmed=doc.get("confirmed_at") is not None,
+        profile=BusinessProfile.model_validate(doc["profile_current"]),
     )
 
 
@@ -94,130 +117,109 @@ def mark_confirmed(p: BusinessProfile) -> BusinessProfile:
     return p
 
 
-async def confirm_profile(conn: AsyncConnection, business_id: UUID, submitted: BusinessProfile) -> StoredProfile | None:
-    """Store the owner's confirmed profile: business columns plus the normalized child tables."""
+async def confirm_profile(db: AsyncDatabase, business_id: UUID, submitted: BusinessProfile) -> StoredProfile | None:
+    """Store the owner's confirmed profile: business fields plus the embedded aliases, locations, services, competitors."""
+    businesses = col(db, "businesses")
+    existing = await businesses.find_one({"_id": str(business_id)}, {"competitors": 1})
+    if existing is None:
+        return None
     p = mark_confirmed(submitted)
-    cols = _columns(p)
+    fields = _columns(p)
     # website_url/domain come from the crawl and are not owner-editable here.
     for fixed in ("website_url", "domain"):
-        cols.pop(fixed)
-    sets = ", ".join(f"{k} = %({k})s" for k in cols)
-    async with conn.transaction():
-        cur = await conn.execute(
-            f"UPDATE businesses SET {sets}, confirmed_at = now(), updated_at = now() WHERE id = %(id)s RETURNING id",
-            cols | {"id": business_id},
-        )
-        if await cur.fetchone() is None:
-            return None
-        for table in ("business_aliases", "business_locations", "services"):
-            await conn.execute(f"DELETE FROM {table} WHERE business_id = %s", (business_id,))
-        await conn.execute("DELETE FROM competitors WHERE business_id = %s AND origin IN ('suggested', 'user')",
-                           (business_id,))
-        async with conn.cursor() as cur:
-            aliases = {a.value.strip() for a in p.aliases if a.value.strip()} - {p.name.value.strip()}
-            if aliases:
-                await cur.executemany(
-                    "INSERT INTO business_aliases (business_id, alias) VALUES (%s, %s)",
-                    [(business_id, a) for a in sorted(aliases)],
-                )
-            if p.locations:
-                await cur.executemany(
-                    """INSERT INTO business_locations
-                       (business_id, label, address, city, region, country_code, postal_code, lat, lng,
-                        is_physical, is_target, priority, origin)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'confirmed')""",
-                    [(business_id, loc.label, loc.address, loc.city, loc.region, loc.country_code, loc.postal_code,
-                      loc.lat, loc.lng, loc.is_physical, loc.is_target, loc.priority) for loc in p.locations],
-                )
-            if p.services:
-                await cur.executemany(
-                    "INSERT INTO services (business_id, name, description, origin) VALUES (%s, %s, %s, 'confirmed')",
-                    [(business_id, s.value, s.description) for s in p.services],
-                )
-            comps = list(dict.fromkeys(c.value.strip() for c in p.suggested_competitors if c.value.strip()))
-            if comps:
-                await cur.executemany(
-                    """INSERT INTO competitors (business_id, name, origin) VALUES (%s, %s, 'user')
-                       ON CONFLICT (business_id, name) DO UPDATE SET origin = 'user'""",
-                    [(business_id, c) for c in comps],
-                )
-    return await get_profile(conn, business_id)
+        fields.pop(fixed)
+
+    aliases = sorted({a.value.strip() for a in p.aliases if a.value.strip()} - {p.name.value.strip()})
+    locations = [
+        {"label": loc.label, "address": loc.address, "city": loc.city, "region": loc.region,
+         "country_code": loc.country_code, "postal_code": loc.postal_code, "lat": loc.lat, "lng": loc.lng,
+         "is_physical": loc.is_physical, "is_target": loc.is_target, "priority": loc.priority, "origin": "confirmed"}
+        for loc in p.locations
+    ]
+    services = [{"name": s.value, "description": s.description, "origin": "confirmed"} for s in p.services]
+    # Owner-entered competitors replace earlier suggested/user ones; competitors found other ways are kept.
+    user_comps = list(dict.fromkeys(c.value.strip() for c in p.suggested_competitors if c.value.strip()))
+    kept = [c for c in existing.get("competitors", [])
+            if c.get("origin") not in ("suggested", "user") and c.get("name") not in user_comps]
+    competitors = kept + [{"name": c, "origin": "user"} for c in user_comps]
+
+    now = _now()
+    await businesses.update_one(
+        {"_id": str(business_id)},
+        {"$set": {**fields, "aliases": aliases, "locations": locations, "services": services,
+                  "competitors": competitors, "confirmed_at": now, "updated_at": now}},
+    )
+    return await get_profile(db, business_id)
 
 
 # ---------------------------------------------------------------------------
-# Foundation checks (stored under an audit row)
+# Foundation checks (stored as an audit document)
 # ---------------------------------------------------------------------------
 
 
-async def save_foundations(conn: AsyncConnection, business_id: UUID, report, started_at) -> UUID:
+async def save_foundations(db: AsyncDatabase, business_id: UUID, report, started_at) -> UUID:
     from .foundations import METHODOLOGY_VERSION
 
-    config = {"kind": "foundations", "url": report.url, "final_url": report.final_url, "cdn": report.cdn,
-              "platform": report.platform, "rendered": report.rendered}
-    async with conn.transaction():
-        cur = await conn.execute(
-            """INSERT INTO audits (business_id, tier, status, methodology_version, config, started_at,
-                                   first_results_at, finished_at)
-               VALUES (%s, 'free', 'complete', %s, %s, %s, now(), now()) RETURNING id""",
-            (business_id, METHODOLOGY_VERSION, Jsonb(config), started_at),
-        )
-        audit_id = (await cur.fetchone())[0]
-        async with conn.cursor() as cur:
-            await cur.executemany(
-                """INSERT INTO foundation_checks (audit_id, check_type, target, status, evidence_level, summary,
-                                                  fix, evidence)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-                [(audit_id, c.check_type, c.target, c.status, c.evidence_level, c.summary, c.fix,
-                  Jsonb(json.loads(json.dumps(c.evidence, default=str)))) for c in report.checks],
-            )
-            await cur.executemany(
-                """INSERT INTO crawler_access (audit_id, url, user_agent, robots, http_status, challenge, result,
-                                               cdn, evidence)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                [(audit_id, r.url, r.token, r.robots, r.http_status, r.challenge, r.result, r.cdn,
-                  Jsonb({"note": r.note, "robots_line": r.robots_line})) for r in report.crawlers],
-            )
+    audit_id = uuid4()
+    now = _now()
+    await col(db, "audits").insert_one({
+        "_id": str(audit_id),
+        "business_id": str(business_id),
+        "tier": "free",
+        "status": "complete",
+        "methodology_version": METHODOLOGY_VERSION,
+        "config": {"kind": "foundations", "url": report.url, "final_url": report.final_url, "cdn": report.cdn,
+                   "platform": report.platform, "rendered": report.rendered},
+        "started_at": started_at,
+        "first_results_at": now,
+        "finished_at": now,
+        "created_at": now,
+        "checks": [
+            {"check_type": c.check_type, "target": c.target, "status": c.status,
+             "evidence_level": c.evidence_level, "summary": c.summary, "fix": c.fix,
+             "evidence": _plain(c.evidence), "checked_at": now}
+            for c in report.checks
+        ],
+        "crawler_access": [
+            {"url": r.url, "user_agent": r.token, "robots": r.robots, "http_status": r.http_status,
+             "challenge": r.challenge, "result": r.result, "cdn": r.cdn,
+             "evidence": {"note": r.note, "robots_line": r.robots_line}}
+            for r in report.crawlers
+        ],
+    })
     return audit_id
 
 
-async def latest_foundations(conn: AsyncConnection, business_id: UUID) -> dict | None:
+async def latest_foundations(db: AsyncDatabase, business_id: UUID) -> dict | None:
     """Latest foundations audit for a business, shaped like the API response."""
     from .crawlers import BY_TOKEN
 
-    cur = conn.cursor(row_factory=dict_row)
-    await cur.execute(
-        """SELECT id, config, finished_at FROM audits
-           WHERE business_id = %s AND config->>'kind' = 'foundations'
-           ORDER BY created_at DESC LIMIT 1""",
-        (business_id,),
+    audit = await col(db, "audits").find_one(
+        {"business_id": str(business_id), "config.kind": "foundations"}, sort=[("created_at", DESCENDING)]
     )
-    audit = await cur.fetchone()
     if audit is None:
         return None
-    await cur.execute(
-        """SELECT check_type::text, target, status::text, evidence_level::text, summary, fix, evidence
-           FROM foundation_checks WHERE audit_id = %s ORDER BY checked_at, id""",
-        (audit["id"],),
-    )
-    checks = await cur.fetchall()
-    await cur.execute(
-        """SELECT url, user_agent, robots::text, http_status, challenge, result, cdn, evidence
-           FROM crawler_access WHERE audit_id = %s""",
-        (audit["id"],),
-    )
+    checks = [{k: c.get(k) for k in ("check_type", "target", "status", "evidence_level", "summary", "fix",
+                                     "evidence")} for c in audit.get("checks", [])]
     order = list(BY_TOKEN)
     crawlers = []
-    for row in sorted(await cur.fetchall(), key=lambda r: order.index(r["user_agent"]) if r["user_agent"] in order else 99):
+    rows = sorted(audit.get("crawler_access", []),
+                  key=lambda r: order.index(r["user_agent"]) if r["user_agent"] in order else 99)
+    for row in rows:
         c = BY_TOKEN.get(row["user_agent"])
+        evidence = row.get("evidence") or {}
         crawlers.append({
             "token": row["user_agent"], "operator": c.operator if c else "", "purpose": c.purpose if c else "",
-            "url": row["url"], "robots": row["robots"], "robots_line": (row["evidence"] or {}).get("robots_line"),
+            "url": row["url"], "robots": row["robots"], "robots_line": evidence.get("robots_line"),
             "http_status": row["http_status"], "challenge": row["challenge"], "result": row["result"],
-            "cdn": row["cdn"], "note": (row["evidence"] or {}).get("note", ""),
+            "cdn": row["cdn"], "note": evidence.get("note", ""),
             "token_only": bool(c and c.is_token_only),
         })
     cfg = audit["config"]
-    return {"audit_id": str(audit["id"]), "checked_at": audit["finished_at"].isoformat(),
+    finished = audit["finished_at"]
+    if finished.tzinfo is None:
+        finished = finished.replace(tzinfo=timezone.utc)
+    return {"audit_id": audit["_id"], "checked_at": finished.isoformat(),
             "url": cfg.get("url"), "final_url": cfg.get("final_url"), "cdn": cfg.get("cdn"),
             "platform": cfg.get("platform"), "rendered": cfg.get("rendered", False),
             "checks": checks, "crawlers": crawlers}

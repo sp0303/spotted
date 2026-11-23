@@ -101,8 +101,59 @@ def florist_site(public_dns):
 
 
 @pytest.fixture
-def database_url():
-    url = os.getenv("TEST_DATABASE_URL")
+def mongo_url():
+    url = os.getenv("TEST_MONGO_URL")
     if not url:
-        pytest.skip("TEST_DATABASE_URL not set")
+        pytest.skip("TEST_MONGO_URL not set")
     return url
+
+
+# ---------- MongoDB (API tests) ----------
+# TEST_MONGO_PREFIX lets several test runs share one database without dropping each other's collections.
+TEST_DB = os.getenv("TEST_MONGO_DB", "spotted_test")
+TEST_PREFIX = os.getenv("TEST_MONGO_PREFIX", "spotted_test_")
+
+
+@pytest.fixture
+def test_prefix():
+    return TEST_PREFIX
+
+
+def _drop_test_collections(database) -> None:
+    """Only this run's prefixed collections are dropped, never other apps' data."""
+    for name in database.list_collection_names():
+        if name.startswith(TEST_PREFIX):
+            database.drop_collection(name)
+
+
+@pytest.fixture
+def db(mongo_url):
+    from pymongo import MongoClient
+
+    with MongoClient(mongo_url) as mc:
+        database = mc[TEST_DB]
+        _drop_test_collections(database)
+        yield database
+        _drop_test_collections(database)
+
+
+@pytest.fixture
+def client(mongo_url, db, fake_llm, monkeypatch):
+    """API test client on the test collections, with a fake LLM and no network geocoding."""
+    from fastapi.testclient import TestClient
+
+    from spotted import api, repo
+    from spotted.config import Settings
+
+    test_settings = Settings(mongo_url=mongo_url, mongo_db=TEST_DB, mongo_collection_prefix=TEST_PREFIX)
+    monkeypatch.setattr(api, "settings", test_settings)
+    monkeypatch.setattr(repo, "settings", test_settings)
+
+    async def no_geocoder(query):  # tests never call OpenStreetMap
+        return None
+
+    monkeypatch.setattr(api, "get_geocoder", lambda: no_geocoder)
+    api.app.dependency_overrides[api.get_llm] = lambda: fake_llm
+    with TestClient(api.app) as c:
+        yield c
+    api.app.dependency_overrides.clear()

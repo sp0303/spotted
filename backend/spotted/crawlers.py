@@ -1,4 +1,4 @@
-"""Crawler registry (plan sections 2 and 20), seeded into the `crawlers` table.
+"""Crawler registry (plan sections 2 and 20), seeded into the `crawlers` collection.
 
 Purposes are grouped so owners can choose: search & answer crawlers help you be found,
 user-triggered fetchers open a page because a person asked, training controls only govern
@@ -8,7 +8,8 @@ model training. Every entry still needs checking against the vendor's current do
 
 from dataclasses import dataclass
 
-from psycopg import AsyncConnection
+from pymongo import UpdateOne
+from pymongo.asynchronous.database import AsyncDatabase
 
 
 @dataclass(frozen=True)
@@ -89,12 +90,15 @@ PURPOSE_LABELS = {
 }
 
 
-async def seed_crawlers(conn: AsyncConnection) -> None:
-    async with conn.cursor() as cur:
-        await cur.executemany(
-            """INSERT INTO crawlers (user_agent, operator, purpose, is_token_only, docs_url, notes)
-               VALUES (%s, %s, %s, %s, %s, %s)
-               ON CONFLICT (user_agent) DO UPDATE SET operator = EXCLUDED.operator, purpose = EXCLUDED.purpose,
-                 is_token_only = EXCLUDED.is_token_only, docs_url = EXCLUDED.docs_url, notes = EXCLUDED.notes""",
-            [(c.token, c.operator, c.purpose, c.is_token_only, c.docs_url, c.notes) for c in CRAWLERS],
-        )
+async def seed_crawlers(db: AsyncDatabase) -> None:
+    """Upsert the registry into the crawlers collection, keyed by robots.txt token."""
+    from .repo import col
+
+    await col(db, "crawlers").bulk_write([
+        UpdateOne({"_id": c.token},
+                  {"$set": {"user_agent": c.token, "operator": c.operator, "purpose": c.purpose,
+                            "is_token_only": c.is_token_only, "docs_url": c.docs_url, "notes": c.notes},
+                   "$setOnInsert": {"verified_at": None}},
+                  upsert=True)
+        for c in CRAWLERS
+    ])

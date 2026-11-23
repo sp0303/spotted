@@ -200,7 +200,7 @@ export default function ChecksPage() {
   return (
     <section className="checks">
       <div className="page-head">
-        <p className="eyebrow">Step 2 of 2 · Can search engines and AI reach your site?</p>
+        <p className="eyebrow">Step 2 of 4 · Can search engines and AI reach your site?</p>
         <h1>Website foundations</h1>
         <p>
           Before we test what AI assistants say about you, we check that they can reach and read your website. No
@@ -287,6 +287,12 @@ export default function ChecksPage() {
               which some firewalls treat differently, so blocks are “likely”, not verified.
             </p>
           </section>
+
+          <div className="sticky-actions">
+            <Link className="primary button-link" to={`/b/${id}/ai`}>
+              Next: ask the AI assistants →
+            </Link>
+          </div>
         </>
       )}
     </section>

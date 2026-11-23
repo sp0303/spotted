@@ -1,23 +1,9 @@
-import psycopg
 import pytest
-from fastapi.testclient import TestClient
 
 from spotted import api
-from spotted.config import Settings
 
 
-@pytest.fixture
-def client(database_url, fake_llm, monkeypatch):
-    with psycopg.connect(database_url, autocommit=True) as conn:
-        conn.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
-    monkeypatch.setattr(api, "settings", Settings(database_url=database_url))
-    api.app.dependency_overrides[api.get_llm] = lambda: fake_llm
-    with TestClient(api.app) as c:
-        yield c
-    api.app.dependency_overrides.clear()
-
-
-def test_extract_then_confirm(client, florist_site, database_url):
+def test_extract_then_confirm(client, florist_site, db, test_prefix):
     resp = client.post("/api/profiles", json={"url": "petallane.example"})
     assert resp.status_code == 201, resp.text
     body = resp.json()
@@ -40,26 +26,20 @@ def test_extract_then_confirm(client, florist_site, database_url):
     assert confirmed["profile"]["services"][0]["source_url"]  # where it came from is kept
     assert confirmed["profile"]["warnings"] == []
 
-    with psycopg.connect(database_url) as conn:
-        row = conn.execute("SELECT name, category, phones, field_origins, profile_raw IS NOT NULL, confirmed_at "
-                           "FROM businesses WHERE id = %s", (bid,)).fetchone()
-        assert row[0] == "Petal Lane Florist" and row[1] == "florist"
-        assert row[2] == ["+1 214-555-0142"]
-        assert row[3]["name"] == "confirmed" and row[4] and row[5] is not None
-        locs = conn.execute("SELECT city, is_physical, country_code, origin FROM business_locations "
-                            "WHERE business_id = %s ORDER BY city", (bid,)).fetchall()
-        assert locs == [("Dallas", True, "US", "confirmed"), ("Plano", False, "US", "confirmed")]
-        assert conn.execute("SELECT count(*) FROM services WHERE business_id = %s", (bid,)).fetchone()[0] == 2
-        comps = conn.execute("SELECT name FROM competitors WHERE business_id = %s ORDER BY name", (bid,)).fetchall()
-        assert [c[0] for c in comps] == ["Bloom Room", "Dr Delphinium", "McShan Florist"]
-        aliases = conn.execute("SELECT alias FROM business_aliases WHERE business_id = %s", (bid,)).fetchall()
-        assert aliases == [("Petal Lane",)]
+    doc = db[test_prefix + "businesses"].find_one({"_id": bid})
+    assert doc["name"] == "Petal Lane Florist" and doc["category"] == "florist"
+    assert doc["phones"] == ["+1 214-555-0142"]
+    assert doc["field_origins"]["name"] == "confirmed" and doc["profile_raw"] and doc["confirmed_at"] is not None
+    locs = sorted((loc["city"], loc["is_physical"], loc["country_code"], loc["origin"]) for loc in doc["locations"])
+    assert locs == [("Dallas", True, "US", "confirmed"), ("Plano", False, "US", "confirmed")]
+    assert len(doc["services"]) == 2
+    assert sorted(c["name"] for c in doc["competitors"]) == ["Bloom Room", "Dr Delphinium", "McShan Florist"]
+    assert doc["aliases"] == ["Petal Lane"]
 
-    # Confirming again replaces the child rows rather than duplicating them.
+    # Confirming again replaces the embedded lists rather than duplicating them.
     assert client.put(f"/api/businesses/{bid}/profile", json=confirmed["profile"]).status_code == 200
-    with psycopg.connect(database_url) as conn:
-        assert conn.execute("SELECT count(*) FROM business_locations WHERE business_id = %s",
-                            (bid,)).fetchone()[0] == 2
+    doc = db[test_prefix + "businesses"].find_one({"_id": bid})
+    assert len(doc["locations"]) == 2 and len(doc["competitors"]) == 3
 
 
 def test_confirm_requires_country_and_target(client, florist_site):
@@ -101,3 +81,76 @@ def test_foundations_endpoint(client, florist_site, monkeypatch):
     assert len(body["crawlers"]) == 16 and body["crawlers"][0]["token"] == "Googlebot"
     assert body["purpose_labels"]["search"].startswith("Search")
     assert client.get(f"/api/businesses/{bid}/foundations").json()["audit_id"] == body["audit_id"]
+
+
+class FakeAnswerer:
+    """Stands in for the AI platforms: names the client only on Gemini search, and fails Perplexity."""
+
+    def __init__(self):
+        self.calls = []
+
+    async def answer(self, platform, prompt, lat, lng, where=None):
+        from spotted.platforms import Answer, PlatformError
+
+        self.calls.append((platform.key, prompt, lat, lng))
+        if platform.key == "perplexity":
+            raise PlatformError("Out of OpenRouter credit.")
+        text = "Try McShan Florist or Petal Lane Florist." if platform.key == "gemini_search" else "Try McShan Florist."
+        return Answer(text=text, model="fake", tokens_in=10, tokens_out=20, cost_usd=0.001, latency_ms=1200,
+                      sources=[{"url": "https://www.yelp.com/x", "title": "Yelp"}])
+
+
+class FakeReader:
+    async def read(self, answer, profile):
+        from spotted.analysis import AnswerReading, NamedBusiness
+
+        names = [n for n in ("McShan Florist", "Petal Lane Florist") if n in answer]
+        return AnswerReading(businesses=[NamedBusiness(name=n, kind="recommended", context=n) for n in names]), 5, 5
+
+
+def test_ai_run_end_to_end(client, florist_site, monkeypatch):
+    import time
+
+    from spotted import platforms
+
+    monkeypatch.setattr(platforms, "available_platforms",
+                        lambda: ["gemini_search", "gemini_maps", "perplexity"])
+    monkeypatch.setattr(api, "available_platforms", platforms.available_platforms)
+    fake = FakeAnswerer()
+    api.app.dependency_overrides[api.get_answerer] = lambda: fake
+    api.app.dependency_overrides[api.get_reader] = lambda: FakeReader()
+
+    bid = client.post("/api/profiles", json={"url": "petallane.example"}).json()["business_id"]
+    assert client.get(f"/api/businesses/{bid}/ai-prompts").status_code == 409  # not confirmed yet
+    profile = client.get(f"/api/businesses/{bid}").json()["profile"]
+    profile["locations"] = [loc for loc in profile["locations"] if loc["city"] == "Dallas"]
+    assert client.put(f"/api/businesses/{bid}/profile", json=profile).status_code == 200
+
+    got = client.get(f"/api/businesses/{bid}/ai-prompts").json()
+    assert got["prompts"][0]["text"] == "best florists in Dallas"
+    prompts = got["prompts"][:2]
+    resp = client.post(f"/api/businesses/{bid}/ai-runs",
+                       json={"prompts": prompts, "platforms": ["gemini_search", "gemini_maps", "perplexity"]})
+    assert resp.status_code == 202, resp.text
+    audit_id = resp.json()["audit_id"]
+
+    for _ in range(300):  # background work over a remote Mongo can take a few seconds
+        run = client.get(f"/api/ai-runs/{audit_id}").json()
+        if run["status"] != "running":
+            break
+        time.sleep(0.1)
+    assert run["status"] == "partial"  # Perplexity failed, the rest finished
+    assert run["finished_runs"] == run["expected_runs"]
+    assert run["expected_runs"] == 6 and run["skipped_platforms"] == []
+    # Maps grounding gets the location's map position; the others rely on the city in the prompt.
+    assert {(k, lat is not None) for k, _, lat, _ in fake.calls} == {
+        ("gemini_search", False), ("gemini_maps", True), ("perplexity", False)}
+    by = {p["key"]: p for p in run["platforms"]}
+    assert (by["gemini_search"]["answers"], by["gemini_search"]["named"]) == (2, 2)
+    assert (by["gemini_maps"]["answers"], by["gemini_maps"]["named"]) == (2, 0)
+    assert by["perplexity"]["errors"] == 2
+    assert run["competitors"][0]["name"] == "McShan Florist" and run["competitors"][0]["answers"] == 4
+    assert run["sources"][0] == {"domain": "yelp.com", "answers": 4, "type": "directory"}
+    assert run["cost_usd"] > 0 and run["first_result_seconds"] is not None
+    assert client.get(f"/api/businesses/{bid}/ai-runs/latest").json()["audit_id"] == audit_id
+    assert all("Dallas" in p for _, p, _, _ in fake.calls)

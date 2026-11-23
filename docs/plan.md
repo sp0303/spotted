@@ -1692,3 +1692,35 @@ Design rules:
   - **spottedhq.com** is active on Vercel — check what it is before using "Spotted HQ".
   - No DNS record (may be free): **tryspotted.ai**, **spottedhq.ai**, **spotted.so**.
 - **To do before launch:** register a domain, check what runs on spottedhq.com, and run a trademark search for "Spotted" (US USPTO and India, software class 9/42). "Spotted" is a common word, so a word-plus-design mark or a compound name (e.g. "Spotted AI") may be needed.
+
+
+---
+
+# Update 9 — Model Comparison (Test 2)
+**Updated: 24 November 2026**
+
+## 39. Which AI models are worth running?
+Same three Dallas florist prompts, 3 runs each, 117 calls. Business names were extracted with gemini-3.8-flash; names not seen in any app or Google Maps answer were checked with Gemini + Google Search. Code and raw results: `research/model_compare/` (compare_models.py, results/20261124-014456).
+
+| Model | Web search | Overlap with apps | Run-to-run | Real & open Dallas florists | Avg seconds |
+|---|---|---|---|---|---|
+| Claude Haiku 5.5 (OpenRouter `:online`) | yes | 27% | 61% | 95% | 11 |
+| Gemini 3.8 Flash + Google Maps (Dallas lat/lng) | yes | 24% | 71% | 100% | 19 |
+| Gemini 3.8 Flash + Google Search | yes | 24% | 63% | 95% | 15 |
+| GPT-5 mini (OpenRouter `:online`, 1 answer) | yes | 21% | – | 100% | 22 |
+| Perplexity Sonar | yes | 16% | 41% | 95% | 6 |
+| Gemini 3.8 Flash, no tools | no | 15% | 30% | 91% | 16 |
+| Kimi K3.1 Pro (NVIDIA) | no | 17% | 66% | 88% | 175 |
+| MiniMax, Nemotron Ultra/Lightning, Mistral Large, Gemma 4 (NVIDIA) | no | 2–4% | 17–58% | 81–92% | 7–126 |
+
+Findings:
+1. **Only web-search models are worth running.** They overlap 16–27% with what the apps showed (in line with section 27's 21–32%) and name real, open businesses 95–100% of the time.
+2. **Models without search are not useful for local visibility.** 2–17% overlap; they named closed shops (Cebolla Fine Flowers, Randy's Flowers), shops in other cities (Bachman's, J. Morris Flowers), non-florists (CB2, Dempsey's) and businesses that don't exist (Deep Ellum Florist, Luna & Grove). Several asked for a location on "near me". Kimi and Mistral took 2–3 minutes per answer.
+3. **"Model knowledge" runs still have a narrow use:** in the paid audit, a search-off run shows what a model remembers about the business; never as the visibility score.
+4. **Even web-search models name closed businesses** (Cebolla Fine Flowers via Claude and Gemini, Freesia via Perplexity) — worth reporting to competitors' disadvantage, and a reason to verify names before showing them as "recommended instead of you".
+5. **Cost:** answers + name extraction + checks for 117 calls ≈ $0.85 in Gemini/OpenRouter tokens; Gemini grounding stayed within the 5,000 free requests a month.
+6. **OpenRouter free accounts** ran out of credit after ~15 web-search calls; ChatGPT, Perplexity, Claude, Copilot and Google AI Mode are "Coming soon" in the product until direct keys are added.
+
+## 40. Build status
+- Steps 1–2: profile extraction, owner confirmation, foundation checks (MongoDB storage).
+- Step 3 free run: up to 10 profile-based prompts, Gemini + Google Search and Gemini + Google Maps (target location geocoded with OpenStreetMap on confirm), all in parallel, results stream to the page; mentions, competitors, cited sources (typed: own site, competitor, directory, publication, marketplace…), wrong facts, and cost per run. Live test on DIRT Flowers (Dallas): named in 6 of 7 Search and 5 of 7 Maps answers; 16 calls, first answer 26 s, $0.17.

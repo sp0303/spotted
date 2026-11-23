@@ -214,7 +214,10 @@ def _parse_sitemap(xml: str) -> tuple[str, list[str]]:
     except ET.ParseError:
         return "invalid", []
     tag = root.tag.rsplit("}", 1)[-1]
-    locs = [el.text.strip() for el in root.iter() if el.tag.rsplit("}", 1)[-1] == "loc" and el.text]
+    # Only the page/sitemap address of each entry: <url><loc> or <sitemap><loc>. Extensions such as
+    # <image:image><image:loc> (Shopify lists product images on its CDN) aren't pages and aren't off-site links.
+    locs = [loc.text.strip() for entry in root for loc in entry
+            if loc.tag.rsplit("}", 1)[-1] == "loc" and loc.text and loc.tag.split("}")[0] == entry.tag.split("}")[0]]
     return (tag if tag in ("urlset", "sitemapindex") else "invalid"), locs
 
 

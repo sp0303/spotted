@@ -136,3 +136,18 @@ def test_cdn_and_challenge_detection():
     assert detect_cdn({"server": "nginx"}) is None
     assert detect_challenge(Page(url="u", status=403, html=CHALLENGE)) == "cloudflare"
     assert detect_challenge(Page(url="u", status=200, html=HOME_HTML)) is None
+
+
+def test_sitemap_image_locs_are_not_pages():
+    """Shopify sitemaps list product images on its CDN as <image:loc>; those aren't off-site page addresses."""
+    from spotted.foundations import _parse_sitemap
+
+    xml = ('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+           'xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">'
+           '<url><loc>https://www.shop.example/products/a</loc>'
+           '<image:image><image:loc>https://cdn.shopify.com/a.jpg</image:loc></image:image></url>'
+           '<url><loc>https://www.shop.example/</loc></url></urlset>')
+    assert _parse_sitemap(xml) == ("urlset", ["https://www.shop.example/products/a", "https://www.shop.example/"])
+    index = ('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+             '<sitemap><loc>https://www.shop.example/sitemap_products_1.xml</loc></sitemap></sitemapindex>')
+    assert _parse_sitemap(index) == ("sitemapindex", ["https://www.shop.example/sitemap_products_1.xml"])
