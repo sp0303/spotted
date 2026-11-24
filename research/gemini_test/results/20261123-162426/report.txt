@@ -1,0 +1,100 @@
+GEMINI API RESULTS — Dallas florist test
+========================================================================
+
+PROMPT: best florists in Dallas
+------------------------------------------------------------------------
+
+  [search]
+    run 1 (21.42s): Avant Garden, Dr. Delphinium Designs & Events, DIRT Flowers, Presch Petals, McShan Florist, Lane Florist, The Botanical Mix
+    run 2 (19.34s): Avant Garden, Dr Delphinium Designs & Events, DIRT Flowers, Bows + Arrows Flowers, Cebolla Fine Flowers, Park Cities Petals, McShan Florist, In Bloom Flowers on Mockingbird
+    run 3 (18.19s): Avant Garden, Dr. Delphinium Designs & Events, DIRT Flowers, Grange Hall, Twelve Thirty Four, McShan Florist, In Bloom Flowers on Mockingbird
+    run-to-run overlap (avg):   42%
+    overlap with ChatGPT app (VPN on)               45%
+    overlap with ChatGPT app (VPN off)              21%
+    overlap with Google AI Mode (VPN on)            45%
+    overlap with Google AI Mode (VPN off)           21%
+    overlap with Copilot (VPN on)                   16%
+    search queries Gemini ran: best florists in Dallas; best florists in Dallas TX; best florists in dallas; top florists Dallas Texas; top flower shops Dallas; top rated flower shops dallas tx d magazine
+
+  [maps_dallas]
+    run 1 (23.25s): McShan Florist, Dr Delphinium Designs & Events, French Florist, Designs East Florist & Interior, All Blooming Flowers, Avant Garden
+    run 2 (18.33s): McShan Florist, Dr Delphinium Designs & Events, French Florist, Designs East Florist & Interior, PRESCH Petals, In Bloom Flowers
+    run 3 (20.09s): McShan Florist, Dr Delphinium Designs & Events, French Florist, Designs East Florist & Interior, PRESCH Petals, In Bloom Flowers
+    run-to-run overlap (avg):   67%
+    overlap with ChatGPT app (VPN on)               45%
+    overlap with ChatGPT app (VPN off)              50%
+    overlap with Google AI Mode (VPN on)            33%
+    overlap with Google AI Mode (VPN off)           50%
+    overlap with Copilot (VPN on)                   12%
+    Maps places returned: 17
+    search queries Gemini ran: Avant Garden Dallas florist; Dr Delphinium Dallas tx; Dr Delphinium Designs & Events Dallas; best florists in Dallas; best florists in Dallas TX
+
+  [search_maps_dallas]
+    run 1: ERROR 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 's
+    run 2: ERROR 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 's
+    run 3: ERROR 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 's
+
+PROMPT: same-day flower delivery Dallas
+------------------------------------------------------------------------
+
+  [search]
+    run 1 (23.31s): Dr Delphinium Designs & Events, In Bloom Flowers, DIRT Flowers, Petals & Stems Florist, All Occasions Florist, Uber Eats, DoorDash, Instacart, Central Market, Whole Foods Market, BloomNation, Floom, Teleflora, FTD, 1-800-Flowers
+    run 2 (21.71s): Dr Delphinium Designs & Events, McShan Florist, DIRT Flowers, In Bloom Flowers, Flower Boom Dallas
+    run 3 (17.15s): Dr Delphinium Designs & Events, DIRT Flowers, In Bloom Flowers, Dallas House of Flowers, Floom, DoorDash, Uber Eats, Central Market, Whole Foods, Tom Thumb
+    run-to-run overlap (avg):   30%
+    overlap with ChatGPT app (VPN on)                5%
+    overlap with ChatGPT app (VPN off)               5%
+    overlap with Google AI Mode (VPN on)            23%
+    overlap with Google AI Mode (VPN off)           14%
+    overlap with Copilot (VPN on)                   12%
+    overlap with Bing (VPN off) run 1               27%
+    overlap with Bing (VPN off) run 2               23%
+    search queries Gemini ran: McShan Florist same day delivery Dallas; best same day flower delivery Dallas florists; best same day flower delivery dallas; same day flower delivery Dallas florists; same day flower delivery Dallas local florist cutoff times; top local florists dallas same day delivery
+
+  [maps_dallas]
+    run 1 (16.32s): French Florist, In Bloom Flowers on Mockingbird, Lovely Flowers Dallas, All Blooming Flowers, Flower Boulevard
+    run 2 (17.94s): Flower Boulevard, Flower Delivery Dallas, Lovely Flowers Dallas, In Bloom Flowers on Mockingbird, All Blooming Flowers
+    run 3 (18.02s): Flower Delivery Dallas, In Bloom Flowers on Mockingbird, Lovely Flowers Dallas, All Blooming Flowers, Flower Boulevard
+    run-to-run overlap (avg):   78%
+    overlap with ChatGPT app (VPN on)                0%
+    overlap with ChatGPT app (VPN off)              10%
+    overlap with Google AI Mode (VPN on)             9%
+    overlap with Google AI Mode (VPN off)           20%
+    overlap with Copilot (VPN on)                   10%
+    overlap with Bing (VPN off) run 1               16%
+    overlap with Bing (VPN off) run 2               10%
+    Maps places returned: 12
+    search queries Gemini ran: same day flower delivery Dallas
+
+  [search_maps_dallas]
+    run 1: ERROR 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 's
+    run 2: ERROR 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 's
+    run 3: ERROR 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 's
+
+PROMPT: best florist near me
+------------------------------------------------------------------------
+
+  [search]
+    run 1 (10.41s): Interflora India, Ferns N Petals (FNP), FlowerAura, IGP (Indian Gifts Portal), Blinkit, Zepto, Swiggy Instamart
+    run 2 (12.32s): Blinkit, Zepto, Swiggy Instamart, Interflora India, Ferns N Petals (FNP), FlowerAura, IGP
+    run 3 (7.76s): Interflora India, Ferns N Petals (FNP), FlowerAura, IGP (Indian Gifts Portal), Blinkit, Zepto, Instamart
+    run-to-run overlap (avg):  100%
+    overlap with Google AI Mode (VPN on, Dallas context)    0%
+    overlap with Copilot (VPN on, Dallas context)    0%
+
+  [maps_dallas]
+    run 1 (16.05s): Flower Boulevard, PRESCH Petals, All Blooming Flowers, Lovely Flowers Dallas, DLux Roses
+    run 2 (12.18s): Flower Boulevard, PRESCH Petals, DLux Roses, Lovely Flowers Dallas, All Blooming Flowers
+    run 3 (12.35s): Flower Boulevard, PRESCH Petals, DLux Roses, All Blooming Flowers, Lovely Flowers Dallas
+    run-to-run overlap (avg):  100%
+    overlap with Google AI Mode (VPN on, Dallas context)    0%
+    overlap with Copilot (VPN on, Dallas context)    0%
+    Maps places returned: 10
+    search queries Gemini ran: best florist near me
+
+  [search_maps_dallas]
+    run 1: ERROR 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 's
+    run 2: ERROR 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 's
+    run 3: ERROR 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Request contains an invalid argument.', 's
+
+Total wall time: 151.2s for 27 calls

@@ -1,0 +1,36 @@
+{
+ "answers (openrouter)": {
+  "calls": 15,
+  "tokens_in": 106882,
+  "tokens_out": 16366,
+  "cost_usd": 0.14860569999999998
+ },
+ "name extraction (gemini)": {
+  "calls": 91,
+  "tokens_in": 61890,
+  "tokens_out": 83383,
+  "tool_tokens": 0
+ },
+ "answers (gemini)": {
+  "calls": 27,
+  "tokens_in": 1949,
+  "tokens_out": 35408,
+  "tool_tokens": 0,
+  "search_requests": 9,
+  "search_queries": 32,
+  "maps_requests": 9
+ },
+ "answers (nvidia)": {
+  "calls": 49,
+  "tokens_in": 3009,
+  "tokens_out": 50541,
+  "cost_usd": 0
+ },
+ "business check (gemini)": {
+  "calls": 5,
+  "tokens_in": 37146,
+  "tokens_out": 48546,
+  "tool_tokens": 0,
+  "search_requests": 5
+ }
+}
