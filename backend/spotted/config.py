@@ -17,7 +17,7 @@ class Settings:
     # Every collection name starts with this, so Spotted can share a database with other apps.
     mongo_collection_prefix: str = field(default_factory=lambda: os.getenv("MONGO_COLLECTION_PREFIX", "spotted_"))
     gemini_api_key: str | None = field(default_factory=lambda: os.getenv("GEMINI_API_KEY") or None)
-    gemini_model: str = field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-3.8-flash"))
+    gemini_model: str = field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite"))
     # Crawl limits: profile extraction has a ~5-15 s budget (plan section 25).
     fetch_timeout_s: float = 8.0
     max_page_bytes: int = 2_000_000
@@ -40,9 +40,9 @@ class Settings:
     ai_call_timeout_s: float = field(default_factory=lambda: float(os.getenv("AI_CALL_TIMEOUT_S", "60")))
     # Where API calls leave from; answers can follow it (plan section 31), so it's recorded with each audit.
     server_region: str = field(default_factory=lambda: os.getenv("SERVER_REGION", "local"))
-    # Gemini paid Standard tier prices, USD (pricing page, 24 Nov 2026; they double on 1 Jan 2027).
-    gemini_price_in_per_m: float = field(default_factory=lambda: float(os.getenv("GEMINI_PRICE_IN_PER_M", "0.75")))
-    gemini_price_out_per_m: float = field(default_factory=lambda: float(os.getenv("GEMINI_PRICE_OUT_PER_M", "3.75")))
+    # Gemini 3.1 Flash-Lite paid Standard tier prices, USD (pricing page, 24 Nov 2026). Thinking tokens bill as output.
+    gemini_price_in_per_m: float = field(default_factory=lambda: float(os.getenv("GEMINI_PRICE_IN_PER_M", "0.25")))
+    gemini_price_out_per_m: float = field(default_factory=lambda: float(os.getenv("GEMINI_PRICE_OUT_PER_M", "1.50")))
     # Search/Maps grounding: 5,000 free requests a month per tool, then this per 1,000.
     gemini_grounding_per_1k: float = 14.0
     count_grounding_cost: bool = field(default_factory=lambda: os.getenv("COUNT_GROUNDING_COST") == "1")
